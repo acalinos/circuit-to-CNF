@@ -58,19 +58,20 @@ def gates_to_clauses(elements):
 
         # Se l'elemento è uguale a ('and', n, m), allora è una porta and
         elif str(element).startswith("('and',"):
-            variable1 = element.split(",")[1].strip()
-            variable2 = element.split(",")[2].strip()
-            and_clause = And(Atom(variable1), Atom(variable2))
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
             n = n + 1
-            # solver.add_clause([variable1, variable2]) -> non compila
-            print("And tra le variabili", variable1, "e", variable2)
-            print(and_clause)
+            # V1 AND V2 = (V1 OR V1) AND (V2 OR V2)
+            cnf.append([variable1, variable1])
+            cnf.append([variable2, variable2])
+            print("Nand tra le variabili", variable1, "e", variable2)
 
         # Se l'elemento è uguale a ('nand', n, m), allora è una porta nand
         elif str(element).startswith("('nand',"):
             variable1 = int(element.split(",")[1].strip())
             variable2 = int(element.split(",")[2].strip())
             n = n + 1
+            # V1 NAND V2 = -(V1 AND V2) = -V1 OR -V2 (Leggi di De Morgan)
             cnf.append([-variable1, -variable2])
             print("Nand tra le variabili", variable1, "e", variable2)
 
@@ -84,30 +85,35 @@ def gates_to_clauses(elements):
             
         # Se l'elemento è uguale a ('nor', n, m), allora è una porta nor
         elif str(element).startswith("('nor',"):
-            variable1 = element.split(",")[1].strip()
-            variable2 = element.split(",")[2].strip()
-            nor_clause = Neg(Or(Atom(variable1), Atom(variable2)))
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
+            n = n + 1
+            # V1 NOR V2 = (-V1 OR -V1) AND (-V2 OR -V2)
+            cnf.append([-variable1, -variable1])
+            cnf.append([-variable2, -variable2])
             n = n + 1
             print("Nor tra le variabili", variable1, "e", variable2)
-            print(nor_clause)
         
         # Se l'elemento è uguale a ('xor', n, m), allora è una porta xor
         elif str(element).startswith("('xor',"):
-            variable1 = element.split(",")[1].strip()
-            variable2 = element.split(",")[2].strip()
-            xor_clause = XOr(Atom(variable1), Atom(variable2))
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
             n = n + 1
+            # V1 XOR V2 = (V1 OR V2) AND (-V1 OR -V2)
+            cnf.append([variable1, variable2])
+            cnf.append([-variable1, -variable2])
             print("Xor tra le variabili", variable1, "e", variable2)
-            print(xor_clause)
         
         # Se l'elemento è uguale a ('xnor', n, m), allora è una porta xnor
         elif str(element).startswith("('xnor',"):
-            variable1 = element.split(",")[1].strip()
-            variable2 = element.split(",")[2].strip()
-            xnor_clause = Neg(XOr(Atom(variable1), Atom(variable2)))
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
+            n = n + 1
+            # V1 XNOR V2 = (-V1 OR V2) AND (V1 OR -V2)
+            cnf.append([-variable1, variable2])
+            cnf.append([variable1, -variable2])
             n = n + 1
             print("Xnor tra le variabili", variable1, "e", variable2)
-            print(xnor_clause)
         
         # Se l'elemento è uguale a ('id', n), allora è una porta output
         elif str(element).startswith("('id',"):

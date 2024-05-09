@@ -47,22 +47,65 @@ def gates_to_clauses(elements):
             n = n + 1
             print("Numero di input:", input_count)
 
-        # Se l'elemento è uguale a ('nand', n, m), allora è una porta NAND
+        # Se l'elemento è uguale a ('and', n, m), allora è una porta and
+        elif str(element).startswith("('and',"):
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
+            n = n + 1
+            # V1 AND V2 = (V1 OR V1) AND (V2 OR V2)
+            cnf.append([variable1, variable1])
+            cnf.append([variable2, variable2])
+            print("Nand tra le variabili", variable1, "e", variable2)
+
+        # Se l'elemento è uguale a ('nand', n, m), allora è una porta nand
         elif str(element).startswith("('nand',"):
             variable1 = int(element.split(",")[1].strip())
             variable2 = int(element.split(",")[2].strip())
             n = n + 1
+            # V1 NAND V2 = -(V1 AND V2) = -V1 OR -V2 (Leggi di De Morgan)
             cnf.append([-variable1, -variable2])
             print("Nand tra le variabili", variable1, "e", variable2)
 
-        # Se l'elemento è uguale a ('or', n, m), allora è una porta OR
+        # Se l'elemento è uguale a ('or', n, m), allora è una porta or
         elif str(element).startswith("('or',"):
             variable1 = int(element.split(",")[1].strip())
             variable2 = int(element.split(",")[2].strip())
             n = n + 1
             cnf.append([variable1, variable2])
             print("Or tra le variabili", variable1, "e", variable2)
+            
+        # Se l'elemento è uguale a ('nor', n, m), allora è una porta nor
+        elif str(element).startswith("('nor',"):
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
+            n = n + 1
+            # V1 NOR V2 = (-V1 OR -V1) AND (-V2 OR -V2)
+            cnf.append([-variable1, -variable1])
+            cnf.append([-variable2, -variable2])
+            n = n + 1
+            print("Nor tra le variabili", variable1, "e", variable2)
         
+        # Se l'elemento è uguale a ('xor', n, m), allora è una porta xor
+        elif str(element).startswith("('xor',"):
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
+            n = n + 1
+            # V1 XOR V2 = (V1 OR V2) AND (-V1 OR -V2)
+            cnf.append([variable1, variable2])
+            cnf.append([-variable1, -variable2])
+            print("Xor tra le variabili", variable1, "e", variable2)
+        
+        # Se l'elemento è uguale a ('xnor', n, m), allora è una porta xnor
+        elif str(element).startswith("('xnor',"):
+            variable1 = int(element.split(",")[1].strip())
+            variable2 = int(element.split(",")[2].strip())
+            n = n + 1
+            # V1 XNOR V2 = (-V1 OR V2) AND (V1 OR -V2)
+            cnf.append([-variable1, variable2])
+            cnf.append([variable1, -variable2])
+            n = n + 1
+            print("Xnor tra le variabili", variable1, "e", variable2)
+                
         # Se l'elemento è uguale a ('id', n), allora è un output
         elif str(element).startswith("('id',"):
             variable = element.split(",")[1].strip()
