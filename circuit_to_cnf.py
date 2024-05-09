@@ -8,11 +8,13 @@ c = circuit()
 g0 = c.gate(op.id_, is_input=True)
 g1 = c.gate(op.id_, is_input=True)
 g2 = c.gate(op.xnor_, [g0, g1])
+g3 = c.gate(op.not_, [g2])
+g4 = c.gate(op.and_, [g2, g3])
 
-g3 = c.gate(op.id_, [g2], is_output=True)
+g5 = c.gate(op.id_, [g2], is_output=True)
 
-# print("La stringa corrispondente è", c.gates.to_legible())
-# print("Il circuito è composto da", c.count(), "porte")
+print("La stringa corrispondente è", c.gates.to_legible())
+print("Il circuito è composto da", c.count(), "porte")
 
 
 # Funzione per dividere la stringa in elementi
@@ -132,7 +134,7 @@ def circuit_to_cnf(c: circuit):
 
     if len(elements) == c.count():
         print("La stringa è stata divisa correttamente.")
-        print(elements)
+        # print(elements)
 
         cnf = gates_to_clauses(elements)
         print(cnf)

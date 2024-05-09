@@ -49,10 +49,7 @@ def gates_to_clauses(elements):
 
         # Se l'elemento è uguale a ('not', n), allora è una porta not
         elif str(element).startswith("('not',"):
-            # Identifica la variabile dal numero
-            variable = element.split(",")[1].strip()
-            # Casting della variabile a intero
-            variable = int(variable) 
+            variable = int(element.split(",")[1].strip())
             n = n + 1          
             print("Not della variabile", variable)
 
