@@ -9,7 +9,7 @@ g0 = c.gate(op.id_, is_input=True)
 g1 = c.gate(op.id_, is_input=True)
 g2 = c.gate(op.xnor_, [g0, g1])
 g3 = c.gate(op.not_, [g2])
-g4 = c.gate(op.nor_, [g2, g3])
+g4 = c.gate(op.xor_, [g2, g3])
 
 g5 = c.gate(op.id_, [g4], is_output=True)
 
@@ -182,11 +182,19 @@ def gates_to_clauses(elements):
         elif str(element).startswith("('xor',"):
             variable1 = int(element.split(",")[1].strip())
             variable2 = int(element.split(",")[2].strip())
+
             n = n + 1
+
             # V1 XOR V2 = (V1 OR V2) AND (-V1 OR -V2)
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = -i
+                if (i, variable2) in nots:
+                    variable2 = -i
+
             cnf.append([variable1, variable2])
             cnf.append([-variable1, -variable2])
-            print("Xor tra le variabili", variable1, "e", variable2)
         
         # Se l'elemento è uguale a ('xnor', n, m), allora è una porta xnor
         elif str(element).startswith("('xnor',"):
