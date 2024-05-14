@@ -9,7 +9,7 @@ g0 = c.gate(op.id_, is_input=True)
 g1 = c.gate(op.id_, is_input=True)
 g2 = c.gate(op.xnor_, [g0, g1])
 g3 = c.gate(op.not_, [g2])
-g4 = c.gate(op.nand_, [g2, g3])
+g4 = c.gate(op.or_, [g2, g3])
 
 g5 = c.gate(op.id_, [g4], is_output=True)
 
@@ -125,11 +125,30 @@ def gates_to_clauses(elements):
         elif str(element).startswith("('or',"):
             variable1 = int(element.split(",")[1].strip())
             variable2 = int(element.split(",")[2].strip())
-            n = n + 1
-            cnf.append([variable1, variable2])
-            print("Or tra le variabili", variable1, "e", variable2)
 
-            
+            n = n + 1
+
+            # V1 OR V2
+
+            bool1 = False 
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([variable1, variable2])
+            elif bool1 and not bool2:
+                cnf.append([-variable1, variable2])
+            elif not bool1 and bool2:
+                cnf.append([variable1, -variable2])
+            elif bool1 and bool2:
+                cnf.append([-variable1, -variable2])            
             
         # Se l'elemento è uguale a ('nor', n, m), allora è una porta nor
         elif str(element).startswith("('nor',"):
