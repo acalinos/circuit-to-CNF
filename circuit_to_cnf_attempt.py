@@ -8,8 +8,10 @@ c = circuit()
 g0 = c.gate(op.id_, is_input=True)
 g1 = c.gate(op.id_, is_input=True)
 g2 = c.gate(op.xnor_, [g0, g1])
+g3 = c.gate(op.not_, [g2])
+g4 = c.gate(op.nand_, [g2, g3])
 
-g3 = c.gate(op.id_, [g2], is_output=True)
+g5 = c.gate(op.id_, [g4], is_output=True)
 
 # print("La stringa corrispondente è", c.gates.to_legible())
 # print("Il circuito è composto da", c.count(), "porte")
@@ -35,6 +37,9 @@ def gates_to_clauses(elements):
 
     # Inizializzo un contatore per le porte logiche
     n = 0
+
+    # Inizializzo un array di coppie di valori per le porte NOT
+    nots = []
     
     # Inizializzo una CNF
     cnf = CNF()
@@ -44,33 +49,77 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('id',), allora è un input
         if element == "('id',":
             input_count = input_count + 1
-            n = n + 1
+            if n > 0:
+                n = n + 1
+            else:
+                n = 0
             print("Numero di input:", input_count)
 
         # Se l'elemento è uguale a ('not', n), allora è una porta not
         elif str(element).startswith("('not',"):
             variable = int(element.split(",")[1].strip())
-            n = n + 1          
+            n = n + 1         
+            # Aggiungo la coppia di valori (n, variable) all'array nots
+            nots.append((variable, n)) 
+            print("Nella lista nots:", nots)
             print("Not della variabile", variable)
 
         # Se l'elemento è uguale a ('and', n, m), allora è una porta and
         elif str(element).startswith("('and',"):
             variable1 = int(element.split(",")[1].strip())
             variable2 = int(element.split(",")[2].strip())
+
             n = n + 1
+
             # V1 AND V2 = (V1 OR V1) AND (V2 OR V2)
-            cnf.append([variable1, variable1])
-            cnf.append([variable2, variable2])
-            print("Nand tra le variabili", variable1, "e", variable2)
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    cnf.append([-i, -i])
+                    bool1 = True
+                if (i, variable2) in nots:
+                    cnf.append([-i, -i])
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([variable1, variable1])
+                cnf.append([variable2, variable2])
+            elif bool1 and not bool2:
+                cnf.append([variable2, variable2])
+            elif not bool1 and bool2:
+                cnf.append([variable1, variable1])
 
         # Se l'elemento è uguale a ('nand', n, m), allora è una porta nand
         elif str(element).startswith("('nand',"):
             variable1 = int(element.split(",")[1].strip())
             variable2 = int(element.split(",")[2].strip())
+
             n = n + 1
+
             # V1 NAND V2 = -(V1 AND V2) = -V1 OR -V2 (Leggi di De Morgan)
-            cnf.append([-variable1, -variable2])
-            print("Nand tra le variabili", variable1, "e", variable2)
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = -i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = -i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([-variable1, -variable2])
+            elif bool1 and not bool2:
+                cnf.append([variable1, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([-variable1, variable2])
+            elif bool1 and bool2:
+                cnf.append([variable1, variable2])
 
         # Se l'elemento è uguale a ('or', n, m), allora è una porta or
         elif str(element).startswith("('or',"):
@@ -79,6 +128,8 @@ def gates_to_clauses(elements):
             n = n + 1
             cnf.append([variable1, variable2])
             print("Or tra le variabili", variable1, "e", variable2)
+
+            
             
         # Se l'elemento è uguale a ('nor', n, m), allora è una porta nor
         elif str(element).startswith("('nor',"):
