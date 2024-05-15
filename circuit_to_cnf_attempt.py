@@ -303,16 +303,16 @@ def circuit_to_cnf(c: circuit):
 
 
 # Funzione per risolvere la CNF
-# def cnf_to_model(cnf: CNF):
-#     solver = Solver(name="g4")
-#     solver.append_formula(cnf)
-#     if solver.solve():
-#         model = solver.get_model()
-#         print("Modello trovato:", model)
-#     else:
-#         print("Modello non trovato.")
-#     return model
+def cnf_to_model(cnf: CNF):
+    solver = Solver(name="g4")
+    solver.append_formula(cnf)
+    if solver.solve():
+        model = solver.get_model()
+        print("Modello trovato:", model)
+    else:
+        print("Modello non trovato.")
+    return model
 
 # Test
 cnf = circuit_to_cnf(c)
-# model = cnf_to_model(cnf)
+model = cnf_to_model(cnf)

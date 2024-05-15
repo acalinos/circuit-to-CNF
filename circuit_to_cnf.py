@@ -5,13 +5,14 @@ from pysat.solvers import Solver
 
 c = circuit()
 
-g0 = c.gate(op.id_, is_input=True)
 g1 = c.gate(op.id_, is_input=True)
-g2 = c.gate(op.xnor_, [g0, g1])
-g3 = c.gate(op.not_, [g2])
-g4 = c.gate(op.and_, [g2, g3])
+g2 = c.gate(op.id_, is_input=True)
+g3 = c.gate(op.xnor_, [g1, g2])
+g4 = c.gate(op.and_, [g1, g3])
+g5 = c.gate(op.nor_, [g2, g4])
+g6 = c.gate(op.or_, [g3, g5])
 
-g5 = c.gate(op.id_, [g2], is_output=True)
+g7 = c.gate(op.id_, [g6], is_output=True)
 
 print("La stringa corrispondente è", c.gates.to_legible())
 print("Il circuito è composto da", c.count(), "porte")
@@ -303,5 +304,22 @@ def circuit_to_cnf(c: circuit):
         return
 
 
+# Funzione per testare la soddisfacibilità della CNF
+def cnf_to_model(cnf: CNF):
+    solver = Solver(name="g4")
+    solver.append_formula(cnf)
+
+    if solver.solve():
+        model = solver.get_model()
+        print("Modello trovato:", model)
+
+    else:
+        model = None
+        print("Modello non trovato.")
+        
+    return model
+    
+
 # Test
-circuit_to_cnf(c)
+cnf = circuit_to_cnf(c)
+model = cnf_to_model(cnf)
