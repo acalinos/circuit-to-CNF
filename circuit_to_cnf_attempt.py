@@ -7,11 +7,10 @@ c = circuit()
 
 g0 = c.gate(op.id_, is_input=True)
 g1 = c.gate(op.id_, is_input=True)
-g2 = c.gate(op.xnor_, [g0, g1])
-g3 = c.gate(op.not_, [g2])
-g4 = c.gate(op.xor_, [g2, g3])
+g2 = c.gate(op.not_, [g1])
+g3 = c.gate(op.and_, [g0, g2])
 
-g5 = c.gate(op.id_, [g4], is_output=True)
+g4 = c.gate(op.id_, [g3], is_output=True)
 
 # print("La stringa corrispondente è", c.gates.to_legible())
 # print("Il circuito è composto da", c.count(), "porte")
@@ -49,11 +48,11 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('id',), allora è un input
         if element == "('id',":
             input_count = input_count + 1
-            if n > 0:
+            if input_count > 1:
                 n = n + 1
             else:
                 n = 0
-            print("Numero di input:", input_count)
+            print("Numero di input:", input_count, ", n:", n)
 
         # Se l'elemento è uguale a ('not', n), allora è una porta not
         elif str(element).startswith("('not',"):
