@@ -8,7 +8,7 @@ c = circuit()
 g1 = c.gate(op.id_, is_input=True)
 g2 = c.gate(op.id_, is_input=True)
 g3 = c.gate(op.not_, [g2])
-g4 = c.gate(op.nand_, [g1, g3])
+g4 = c.gate(op.xnor_, [g1, g3])
 
 g5 = c.gate(op.id_, [g4], is_output=True)
 
@@ -78,19 +78,24 @@ def gates_to_clauses(elements):
 
             for i in range(0, n):
                 if (i, variable1) in nots:
-                    cnf.append([-i, -i])
+                    variable1 = i
                     bool1 = True
                 if (i, variable2) in nots:
-                    cnf.append([-i, -i])
+                    variable2 = i
                     bool2 = True
 
             if not bool1 and not bool2:
                 cnf.append([variable1, variable1])
                 cnf.append([variable2, variable2])
             elif bool1 and not bool2:
+                cnf.append([-variable1, -variable1])
                 cnf.append([variable2, variable2])
             elif not bool1 and bool2:
                 cnf.append([variable1, variable1])
+                cnf.append([-variable2, -variable2])
+            elif bool1 and bool2:
+                cnf.append([-variable1, -variable1])
+                cnf.append([-variable2, -variable2])
 
         # Se l'elemento è uguale a ('nand', n, m), allora è una porta nand
         elif str(element).startswith("('nand',"):
@@ -152,7 +157,9 @@ def gates_to_clauses(elements):
             elif not bool1 and bool2:
                 cnf.append([variable1, -variable2])
             elif bool1 and bool2:
-                cnf.append([-variable1, -variable2])            
+                cnf.append([-variable1, -variable2])   
+            elif bool1 and bool2:  
+                cnf.append([-variable1, -variable2])       
             
         # Se l'elemento è uguale a ('nor', n, m), allora è una porta nor
         elif str(element).startswith("('nor',"):
@@ -170,19 +177,24 @@ def gates_to_clauses(elements):
 
             for i in range(0, n):
                 if (i, variable1) in nots:
-                    cnf.append([-i, -i])
+                    variable1 = i
                     bool1 = True
                 if (i, variable2) in nots:
-                    cnf.append([-i, -i])
+                    variable2 = i
                     bool2 = True
 
             if not bool1 and not bool2:
                 cnf.append([-variable1, -variable1])
                 cnf.append([-variable2, -variable2])
             elif bool1 and not bool2:
-                cnf.append([variable2, variable2])
-            elif not bool1 and bool2:
                 cnf.append([variable1, variable1])
+                cnf.append([-variable2, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([-variable1, -variable1])
+                cnf.append([variable2, variable2])
+            elif bool1 and bool2:
+                cnf.append([variable1, variable1])
+                cnf.append([variable2, variable2])
         
         # Se l'elemento è uguale a ('xor', n, m), allora è una porta xor
         elif str(element).startswith("('xor',"):
@@ -195,14 +207,29 @@ def gates_to_clauses(elements):
 
             # V1 XOR V2 = (V1 OR V2) AND (-V1 OR -V2)
 
+            bool1 = False
+            bool2 = False
+
             for i in range(0, n):
                 if (i, variable1) in nots:
-                    variable1 = -i
+                    variable1 = i
+                    bool1 = True
                 if (i, variable2) in nots:
-                    variable2 = -i
+                    variable2 = i
+                    bool2 = True
 
-            cnf.append([variable1, variable2])
-            cnf.append([-variable1, -variable2])
+            if not bool1 and not bool2:
+                cnf.append([variable1, variable2])
+                cnf.append([-variable1, -variable2])
+            elif bool1 and not bool2:
+                cnf.append([-variable1, variable2])
+                cnf.append([variable1, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([variable1, -variable2])
+                cnf.append([-variable1, variable2])
+            elif bool1 and bool2:
+                cnf.append([-variable1, -variable2])
+                cnf.append([variable1, variable2])
         
         # Se l'elemento è uguale a ('xnor', n, m), allora è una porta xnor
         elif str(element).startswith("('xnor',"):
@@ -210,12 +237,34 @@ def gates_to_clauses(elements):
             variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
             variable2 = variable2 + 1
+
             n = n + 1
+
             # V1 XNOR V2 = (-V1 OR V2) AND (V1 OR -V2)
-            cnf.append([-variable1, variable2])
-            cnf.append([variable1, -variable2])
-            n = n + 1
-            print("Xnor tra le variabili", variable1, "e", variable2)
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([-variable1, variable2])
+                cnf.append([variable1, -variable2])
+            elif bool1 and not bool2:
+                cnf.append([variable1, variable2])
+                cnf.append([-variable1, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([-variable1, -variable2])
+                cnf.append([variable1, variable2])
+            elif bool1 and bool2:
+                cnf.append([variable1, -variable2])
+                cnf.append([-variable1, variable2])
         
         # Se l'elemento è uguale a ('id', n), allora è una porta output
         elif str(element).startswith("('id',"):

@@ -36,7 +36,10 @@ def gates_to_clauses(elements):
     input_count = 0
 
     # Inizializzo un contatore per le porte logiche
-    n = 0
+    n = 1
+
+    # Inizializzo un array di coppie di valori per le porte NOT
+    nots = []
     
     # Inizializzo una CNF
     cnf = CNF()
@@ -46,82 +49,237 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('id',), allora è un input
         if element == "('id',":
             input_count = input_count + 1
-            n = n + 1
-            print("Numero di input:", input_count)
+            if input_count > 1:
+                n = n + 1
+            else:
+                n = 1
+            print("Numero di input:", input_count, ", n:", n)
+
+        # Se l'elemento è uguale a ('not', n), allora è una porta not
+        elif str(element).startswith("('not',"):
+            variable = int(element.split(",")[1].strip()) + 1
+            n = n + 1         
+            # Aggiungo la coppia di valori (n, variable) all'array nots
+            nots.append((variable, n)) 
+            print("Nella lista nots:", nots, ", quindi ogni volta che trovo", n, "scrivo", -variable)
 
         # Se l'elemento è uguale a ('and', n, m), allora è una porta and
         elif str(element).startswith("('and',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
+
             n = n + 1
+
             # V1 AND V2 = (V1 OR V1) AND (V2 OR V2)
-            cnf.append([variable1, variable1])
-            cnf.append([variable2, variable2])
-            print("Nand tra le variabili", variable1, "e", variable2)
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([variable1, variable1])
+                cnf.append([variable2, variable2])
+            elif bool1 and not bool2:
+                cnf.append([-variable1, -variable1])
+                cnf.append([variable2, variable2])
+            elif not bool1 and bool2:
+                cnf.append([variable1, variable1])
+                cnf.append([-variable2, -variable2])
+            elif bool1 and bool2:
+                cnf.append([-variable1, -variable1])
+                cnf.append([-variable2, -variable2])
 
         # Se l'elemento è uguale a ('nand', n, m), allora è una porta nand
         elif str(element).startswith("('nand',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
+
             n = n + 1
+
             # V1 NAND V2 = -(V1 AND V2) = -V1 OR -V2 (Leggi di De Morgan)
-            cnf.append([-variable1, -variable2])
-            print("Nand tra le variabili", variable1, "e", variable2)
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([-variable1, -variable2])
+            elif bool1 and not bool2:
+                cnf.append([variable1, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([-variable1, variable2])
+            elif bool1 and bool2:
+                cnf.append([variable1, variable2])
 
         # Se l'elemento è uguale a ('or', n, m), allora è una porta or
         elif str(element).startswith("('or',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
+
             n = n + 1
-            cnf.append([variable1, variable2])
-            print("Or tra le variabili", variable1, "e", variable2)
+
+            # V1 OR V2
+
+            bool1 = False 
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([variable1, variable2])
+            elif bool1 and not bool2:
+                cnf.append([-variable1, variable2])
+            elif not bool1 and bool2:
+                cnf.append([variable1, -variable2])
+            elif bool1 and bool2:
+                cnf.append([-variable1, -variable2])   
+            elif bool1 and bool2:  
+                cnf.append([-variable1, -variable2])       
             
         # Se l'elemento è uguale a ('nor', n, m), allora è una porta nor
         elif str(element).startswith("('nor',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
+
             n = n + 1
+
             # V1 NOR V2 = (-V1 OR -V1) AND (-V2 OR -V2)
-            cnf.append([-variable1, -variable1])
-            cnf.append([-variable2, -variable2])
-            n = n + 1
-            print("Nor tra le variabili", variable1, "e", variable2)
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([-variable1, -variable1])
+                cnf.append([-variable2, -variable2])
+            elif bool1 and not bool2:
+                cnf.append([variable1, variable1])
+                cnf.append([-variable2, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([-variable1, -variable1])
+                cnf.append([variable2, variable2])
+            elif bool1 and bool2:
+                cnf.append([variable1, variable1])
+                cnf.append([variable2, variable2])
         
         # Se l'elemento è uguale a ('xor', n, m), allora è una porta xor
         elif str(element).startswith("('xor',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
+
             n = n + 1
+
             # V1 XOR V2 = (V1 OR V2) AND (-V1 OR -V2)
-            cnf.append([variable1, variable2])
-            cnf.append([-variable1, -variable2])
-            print("Xor tra le variabili", variable1, "e", variable2)
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([variable1, variable2])
+                cnf.append([-variable1, -variable2])
+            elif bool1 and not bool2:
+                cnf.append([-variable1, variable2])
+                cnf.append([variable1, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([variable1, -variable2])
+                cnf.append([-variable1, variable2])
+            elif bool1 and bool2:
+                cnf.append([-variable1, -variable2])
+                cnf.append([variable1, variable2])
         
         # Se l'elemento è uguale a ('xnor', n, m), allora è una porta xnor
         elif str(element).startswith("('xnor',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
+
             n = n + 1
+
             # V1 XNOR V2 = (-V1 OR V2) AND (V1 OR -V2)
-            cnf.append([-variable1, variable2])
-            cnf.append([variable1, -variable2])
-            n = n + 1
-            print("Xnor tra le variabili", variable1, "e", variable2)
-                
-        # Se l'elemento è uguale a ('id', n), allora è un output
+
+            bool1 = False
+            bool2 = False
+
+            for i in range(0, n):
+                if (i, variable1) in nots:
+                    variable1 = i
+                    bool1 = True
+                if (i, variable2) in nots:
+                    variable2 = i
+                    bool2 = True
+
+            if not bool1 and not bool2:
+                cnf.append([-variable1, variable2])
+                cnf.append([variable1, -variable2])
+            elif bool1 and not bool2:
+                cnf.append([variable1, variable2])
+                cnf.append([-variable1, -variable2])
+            elif not bool1 and bool2:
+                cnf.append([-variable1, -variable2])
+                cnf.append([variable1, variable2])
+            elif bool1 and bool2:
+                cnf.append([variable1, -variable2])
+                cnf.append([-variable1, variable2])
+        
+        # Se l'elemento è uguale a ('id', n), allora è una porta output
         elif str(element).startswith("('id',"):
             variable = element.split(",")[1].strip()
             # Elimina la parentesi tonda finale
             variable = variable[:-1]
             n = n + 1
-            print("Output della variabile", variable)
             print("Fine del circuito, numero di porte:", n)
         
         else:
             print("Tipo di gate non riconosciuto:", element)
 
     return cnf
-    
+   
 
 # Funzione per convertire il circuito in CNF
 def circuit_to_cnf(c: circuit):
