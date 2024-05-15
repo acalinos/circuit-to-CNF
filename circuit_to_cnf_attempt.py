@@ -5,12 +5,12 @@ from pysat.solvers import Solver
 
 c = circuit()
 
-g0 = c.gate(op.id_, is_input=True)
 g1 = c.gate(op.id_, is_input=True)
-g2 = c.gate(op.not_, [g1])
-g3 = c.gate(op.and_, [g0, g2])
+g2 = c.gate(op.id_, is_input=True)
+g3 = c.gate(op.not_, [g2])
+g4 = c.gate(op.nand_, [g1, g3])
 
-g4 = c.gate(op.id_, [g3], is_output=True)
+g5 = c.gate(op.id_, [g4], is_output=True)
 
 # print("La stringa corrispondente è", c.gates.to_legible())
 # print("Il circuito è composto da", c.count(), "porte")
@@ -35,7 +35,7 @@ def gates_to_clauses(elements):
     input_count = 0
 
     # Inizializzo un contatore per le porte logiche
-    n = 0
+    n = 1
 
     # Inizializzo un array di coppie di valori per le porte NOT
     nots = []
@@ -51,22 +51,23 @@ def gates_to_clauses(elements):
             if input_count > 1:
                 n = n + 1
             else:
-                n = 0
+                n = 1
             print("Numero di input:", input_count, ", n:", n)
 
         # Se l'elemento è uguale a ('not', n), allora è una porta not
         elif str(element).startswith("('not',"):
-            variable = int(element.split(",")[1].strip())
+            variable = int(element.split(",")[1].strip()) + 1
             n = n + 1         
             # Aggiungo la coppia di valori (n, variable) all'array nots
             nots.append((variable, n)) 
-            print("Nella lista nots:", nots)
-            print("Not della variabile", variable)
+            print("Nella lista nots:", nots, ", quindi ogni volta che trovo", n, "scrivo", -variable)
 
         # Se l'elemento è uguale a ('and', n, m), allora è una porta and
         elif str(element).startswith("('and',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
 
             n = n + 1
 
@@ -94,7 +95,9 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('nand', n, m), allora è una porta nand
         elif str(element).startswith("('nand',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
 
             n = n + 1
 
@@ -105,10 +108,10 @@ def gates_to_clauses(elements):
 
             for i in range(0, n):
                 if (i, variable1) in nots:
-                    variable1 = -i
+                    variable1 = i
                     bool1 = True
                 if (i, variable2) in nots:
-                    variable2 = -i
+                    variable2 = i
                     bool2 = True
 
             if not bool1 and not bool2:
@@ -123,7 +126,9 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('or', n, m), allora è una porta or
         elif str(element).startswith("('or',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
 
             n = n + 1
 
@@ -152,7 +157,9 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('nor', n, m), allora è una porta nor
         elif str(element).startswith("('nor',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
 
             n = n + 1
 
@@ -180,7 +187,9 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('xor', n, m), allora è una porta xor
         elif str(element).startswith("('xor',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
 
             n = n + 1
 
@@ -198,7 +207,9 @@ def gates_to_clauses(elements):
         # Se l'elemento è uguale a ('xnor', n, m), allora è una porta xnor
         elif str(element).startswith("('xnor',"):
             variable1 = int(element.split(",")[1].strip())
+            variable1 = variable1 + 1
             variable2 = int(element.split(",")[2].strip())
+            variable2 = variable2 + 1
             n = n + 1
             # V1 XNOR V2 = (-V1 OR V2) AND (V1 OR -V2)
             cnf.append([-variable1, variable2])
@@ -212,7 +223,6 @@ def gates_to_clauses(elements):
             # Elimina la parentesi tonda finale
             variable = variable[:-1]
             n = n + 1
-            print("Output della variabile", variable)
             print("Fine del circuito, numero di porte:", n)
         
         else:
