@@ -35,13 +35,10 @@ def gates_to_clauses(elements):
 
     # Inizializzo un contatore per gli input
     input_count = 0
-
     # Inizializzo un contatore per le porte logiche
     n = 1
-
     # Inizializzo un array di coppie di valori per le porte NOT
     nots = []
-    
     # Inizializzo una CNF
     cnf = CNF()
 
@@ -62,7 +59,7 @@ def gates_to_clauses(elements):
             n = n + 1         
             # Aggiungo la coppia di valori (n, variable) all'array nots
             nots.append((variable, n)) 
-            print("Nella lista nots:", nots, ", quindi ogni volta che trovo", n, "scrivo", -variable)
+            print("Nella lista nots: ", nots, ", quindi ogni volta che trovo", n, "scrivo", -variable)
 
         # Se l'elemento è uguale a ('and', n, m), allora è una porta and
         elif str(element).startswith("('and',"):
