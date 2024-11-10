@@ -5,7 +5,15 @@ Tirocinio curricolare, Laurea Triennale in Informatica, Alma Mater Studiorum - U
 Implementazione di una libreria Python per la Crittanalisi Logica.
 
 # next step
-+ 
++ Implementazione di porte n-arie
++ Implementazione della concatenazione di circuiti
+  + sequenziali
+    + CORRISPONDENZA UNIVOCA output -> input
+    + passare circuito e lista di coppie della corrispondenza
+  + paralleli
+    + circuit1 U circuit2 controllando i gates in comune 
++ XOR di vettori di bit
++ Permutazione con tabella (a 1 corrisponde 7)
 
 # objectives
 Obiettivi dell'attività di tirocinio sono la progettazione e lo sviluppo di una libreria per la Crittanalisi Logica in ambiente Python. 
