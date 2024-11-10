@@ -1,11 +1,16 @@
 # circuit-to-CNF
-Tirocinio, Laurea Triennale in Informatica, Alma Mater Studiorum - Università di Bologna.
+Tirocinio curricolare, Laurea Triennale in Informatica, Alma Mater Studiorum - Università di Bologna.
 
 # object
 Implementazione di una libreria Python per la Crittanalisi Logica.
 
+# next step
++ 
+
 # objectives
-Obiettivi dell'attività di tirocinio sono la progettazione e lo sviluppo di una libreria per la Crittanalisi Logica in ambiente Python. La libreria permette di descrivere modularmente cifrari a blocco e cifrari di flusso nella forma di circuiti, ma soprattutto di tradurre il relativo problema di key recovery in un problema di soddisfacibilità per un'opportuna formula proposizionale, che venga poi passata ad un portfolio di SAT solver allo stato dell'arte. Verrà poi studiata l'applicabilità della libreria ottenuta ad alcuni cifrari concreti.
+Obiettivi dell'attività di tirocinio sono la progettazione e lo sviluppo di una libreria per la Crittanalisi Logica in ambiente Python. 
+La libreria permette di descrivere modularmente cifrari a blocco e cifrari di flusso nella forma di circuiti, ma soprattutto di tradurre il relativo problema di key recovery in un problema di soddisfacibilità per un'opportuna formula proposizionale, che venga poi passata ad un portfolio di SAT solver allo stato dell'arte.
+Verrà poi studiata l'applicabilità della libreria ottenuta ad alcuni cifrari concreti.
 
 # activities
 + Studio della letteratura sulla Crittanalisi Logica e il problema SAT.

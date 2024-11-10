@@ -318,5 +318,5 @@ def cnf_to_model(cnf: CNF):
     
 
 # Test
-cnf = circuit_to_cnf(c)
-model = cnf_to_model(cnf)
+# cnf = circuit_to_cnf(c)
+# model = cnf_to_model(cnf)
