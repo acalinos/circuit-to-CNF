@@ -8,7 +8,7 @@ def apply_permutation(circuit, input_wires, perm_table, prefix):
     """
     output_wires = []
     for i, pos in enumerate(perm_table):
-        out_wire = f"{prefix}_p{i}"
+        out_wire = f"{prefix}p{i}"
         circuit.add(out_wire, 'buf', fanin=[input_wires[pos - 1]])
         output_wires.append(out_wire)
     return output_wires
@@ -37,8 +37,8 @@ EXPANSION_TABLE = [32,  1,  2,  3,  4,  5,
                    24, 25, 26, 27, 28, 29,
                    28, 29, 30, 31, 32,  1]
 
-def expansion_permutation(circuit, input_wires):
-    return apply_permutation(circuit, input_wires, EXPANSION_TABLE, "E")
+def expansion_permutation(circuit, input_wires, prefix="E_"):
+    return apply_permutation(circuit, input_wires, EXPANSION_TABLE, prefix)
 
 # Permutazione P
 P_TABLE = [16,  7, 20, 21,
@@ -50,11 +50,12 @@ P_TABLE = [16,  7, 20, 21,
            19, 13, 30,  6,
            22, 11,  4, 25]
 
-def p_permutation(circuit, input_wires):
+
+def p_permutation(circuit, input_wires, prefix="P_"):
     """
     Implementa la permutazione P utilizzata dopo le S-Box.
     """
-    return apply_permutation(circuit, input_wires, P_TABLE, "P")
+    return apply_permutation(circuit, input_wires, P_TABLE, prefix)
 
 # Final Permutation (IP^-1)
 FP_TABLE = [40, 8, 48, 16, 56, 24, 64, 32,
@@ -132,7 +133,7 @@ SBOX_TABLES = [
     ]
 ]
 
-def f_function(circuit, right_half, subkey):
+def f_function(circuit, right_half, subkey, round_num):
     """
     Implementa la funzione F del DES.
     
@@ -140,17 +141,21 @@ def f_function(circuit, right_half, subkey):
         circuit: Circuito cg esistente
         right_half: Lista dei 32 wire del lato destro
         subkey: Lista dei 48 wire della sottochiave
+        round_num: Numero del round corrente
         
     Returns:
         Lista dei 32 wire di output della funzione F
     """
+    # Usa un prefisso round-specifico per tutti i nodi
+    round_prefix = f"r{round_num}_"
+    
     # Espansione da 32 a 48 bit
-    expanded = expansion_permutation(circuit, right_half)
+    expanded = expansion_permutation(circuit, right_half, f"E_{round_prefix}")
     
     # XOR con la sottochiave
     xor_outputs = []
     for i in range(48):
-        xor_wire = f"xor_E_K_{i}"
+        xor_wire = f"{round_prefix}xor_E_K_{i}"
         circuit.add(xor_wire, 'xor', fanin=[expanded[i], subkey[i]])
         xor_outputs.append(xor_wire)
     
@@ -168,10 +173,17 @@ def f_function(circuit, right_half, subkey):
         input_wires = sbox_inputs[i]
         
         # Output wires per questa S-box (4 bit)
-        output_wires = [f"sbox{sbox_number}_out{j}" for j in range(4)]
+        output_wires = [f"{round_prefix}sbox{sbox_number}_out{j}" for j in range(4)]
         
         # Dizionario per tracciare gli input degli OR gate
         or_inputs = {j: [] for j in range(4)}
+        
+        # Crea prima tutti i NOT gates necessari per gli input
+        not_wires = {}
+        for j, wire in enumerate(input_wires):
+            not_wire = f"{round_prefix}not_sbox{sbox_number}_in{j}"
+            circuit.add(not_wire, 'not', fanin=[wire])
+            not_wires[j] = not_wire
         
         # Processo tutte le 64 possibili combinazioni di input
         for comb_idx in range(64):
@@ -193,13 +205,10 @@ def f_function(circuit, right_half, subkey):
                 if bit == '1':
                     and_terms.append(input_wires[j])
                 else:
-                    not_wire = f"not_{input_wires[j]}"
-                    if not_wire not in circuit.nodes():
-                        circuit.add(not_wire, 'not', fanin=[input_wires[j]])
-                    and_terms.append(not_wire)
+                    and_terms.append(not_wires[j])
             
             # Crea l'AND gate per questa combinazione
-            and_wire = f"sbox{sbox_number}_and_{comb_idx}"
+            and_wire = f"{round_prefix}sbox{sbox_number}_and_{comb_idx}"
             circuit.add(and_wire, 'and', fanin=and_terms)
             
             # Per ogni bit di output che è 1, aggiungi questo AND all'OR corrispondente
@@ -210,22 +219,22 @@ def f_function(circuit, right_half, subkey):
         # Crea gli OR gate e le uscite
         for j in range(4):
             if or_inputs[j]:  # Se ci sono input per questo OR
-                or_wire = f"sbox{sbox_number}_or_{j}"
+                or_wire = f"{round_prefix}sbox{sbox_number}_or_{j}"
                 circuit.add(or_wire, 'or', fanin=or_inputs[j])
                 circuit.add(output_wires[j], 'buf', fanin=[or_wire])
             else:  # Se non ci sono input (sempre 0)
-                const_wire = f"const0_{sbox_number}_{j}"
+                const_wire = f"{round_prefix}const0_{sbox_number}_{j}"
                 if const_wire not in circuit.nodes():
                     circuit.add(const_wire, 'const0')
                 circuit.add(output_wires[j], 'buf', fanin=[const_wire])
             
             sbox_outputs.append(output_wires[j])
-    
+
+
     # Permutazione P finale (da 32 a 32 bit)
-    permuted = p_permutation(circuit, sbox_outputs)
+    permuted = p_permutation(circuit, sbox_outputs, f"P_{round_prefix}")
     
     return permuted
-
 
 def des_round(circuit, left_half, right_half, subkey, round_num):
     """
@@ -245,12 +254,12 @@ def des_round(circuit, left_half, right_half, subkey, round_num):
     new_left = right_half
     
     # Calcola la funzione F
-    f_result = f_function(circuit, right_half, subkey)
+    f_result = f_function(circuit, right_half, subkey, round_num)
     
     # XOR tra il vecchio lato sinistro e l'output della funzione F
     new_right = []
     for i in range(32):
-        xor_wire = f"round{round_num}_R_{i}"
+        xor_wire = f"r{round_num}_R_{i}"
         circuit.add(xor_wire, 'xor', fanin=[left_half[i], f_result[i]])
         new_right.append(xor_wire)
     
