@@ -132,6 +132,87 @@ SBOX_TABLES = [
     ]
 ]
 
+def sbox(sbox_number):
+    """
+    Genera il circuito logico di una S-Box specifica.
+    """
+    circuit = cg.Circuit()
+    
+    sbox_idx = sbox_number - 1  # Indice 0-based per accedere alle tabelle
+    sbox_table = SBOX_TABLES[sbox_idx]
+    
+    # Input wires (6 bits)
+    input_wires = [f'sbox{sbox_number}_in{i}' for i in range(6)]
+    for wire in input_wires:
+        circuit.add(wire, 'input')
+    
+    # Output wires (4 bits)
+    output_wires = [f'sbox{sbox_number}_out{i}' for i in range(4)]
+    # We'll add these at the end with proper connections
+    
+    # Dictionary to keep track of OR gates for each output
+    or_nodes = {}
+    
+    # Implementazione tramite LUT (Look-Up Table)
+    for i in range(64):
+        # Converti i in binario a 6 bit
+        bin_i = format(i, '06b')
+        
+        # Calcola riga e colonna per la S-Box
+        row = int(bin_i[0] + bin_i[5], 2)  # Bit esterno e interno formano la riga
+        col = int(bin_i[1:5], 2)           # 4 bit centrali formano la colonna
+        
+        # Ottieni il valore dalla tabella S-Box
+        sbox_value = sbox_table[row][col]
+        # Converti il valore in binario a 4 bit
+        bin_value = format(sbox_value, '04b')
+        
+        # Crea un and-gate per ogni combinazione di input
+        and_terms = []
+        for j, bit in enumerate(bin_i):
+            term = input_wires[j] if bit == '1' else f'not_{input_wires[j]}'
+            if f'not_{input_wires[j]}' == term:
+                if term not in circuit.nodes():
+                    circuit.add(term, 'not', fanin=[input_wires[j]])
+            and_terms.append(term)
+        
+        # Crea l'and-gate per questa combinazione
+        comb_node = f'comb_{sbox_number}_{i}'
+        circuit.add(comb_node, 'and', fanin=and_terms)
+        
+        # Collega l'output dell'and-gate agli output appropriati
+        for j, bit in enumerate(bin_value):
+            if bit == '1':
+                # Create or retrieve existing OR gate for this output
+                or_node = f'or_{sbox_number}_out{j}'
+                if or_node not in or_nodes:
+                    # Initialize with this AND term
+                    or_nodes[or_node] = [comb_node]
+                else:
+                    # Add this AND term to existing ones
+                    or_nodes[or_node].append(comb_node)
+    
+    # Create the OR gates with all their inputs and connect to outputs
+    for j in range(4):
+        output_name = output_wires[j]
+        or_node = f'or_{sbox_number}_out{j}'
+        
+        # If this output has any 1's in the truth table
+        if or_node in or_nodes:
+            # Create the OR gate with all its inputs
+            circuit.add(or_node, 'or', fanin=or_nodes[or_node])
+            # Create the output buffer connected to the OR gate
+            circuit.add(output_name, 'buf', fanin=[or_node])
+        else:
+            # If this output is always 0, connect it to a constant 0
+            circuit.add('const_0', 'const0')
+            circuit.add(output_name, 'buf', fanin=['const_0'])
+        
+        # Mark as output
+        circuit.set_output(output_name)
+    
+    return circuit
+
 def f_function(circuit, right_half, subkey):
     """
     Implementa la funzione F del DES.
@@ -158,74 +239,34 @@ def f_function(circuit, right_half, subkey):
     sbox_inputs = [xor_outputs[i:i+6] for i in range(0, 48, 6)]
     sbox_outputs = []
     
-    # Applica le 8 S-box direttamente nel circuito principale
-    for sbox_number in range(1, 9):
-        i = sbox_number - 1  # Indice 0-based
-        sbox_idx = i
-        sbox_table = SBOX_TABLES[sbox_idx]
+    # Applica le 8 S-box
+    for i in range(8):
+        # Per ogni S-box, prendi i 6 bit corrispondenti e produci 4 bit di output
+        s_box = sbox(i + 1)
         
-        # Input di questo S-box
-        input_wires = sbox_inputs[i]
+        # Aggiungi il circuito S-box al circuito principale
+        sbox_prefix = f"sbox_{i+1}"
         
-        # Output wires per questa S-box (4 bit)
-        output_wires = [f"sbox{sbox_number}_out{j}" for j in range(4)]
+        # Mappa gli input della S-box
+        sbox_mappings = {}
+        for j in range(6):
+            sbox_mappings[f'sbox{i+1}_in{j}'] = sbox_inputs[i][j]
         
-        # Dizionario per tracciare gli input degli OR gate
-        or_inputs = {j: [] for j in range(4)}
+        # Aggiungi la S-box al circuito
+        circuit.add_circuit(s_box, sbox_prefix, sbox_mappings)
         
-        # Processo tutte le 64 possibili combinazioni di input
-        for comb_idx in range(64):
-            # Converti l'indice in binario a 6 bit
-            bin_comb = format(comb_idx, '06b')
-            
-            # Calcola riga e colonna per la S-Box
-            row = int(bin_comb[0] + bin_comb[5], 2)  # Bit esterno e interno formano la riga
-            col = int(bin_comb[1:5], 2)             # 4 bit centrali formano la colonna
-            
-            # Ottieni il valore dalla tabella S-Box
-            sbox_value = sbox_table[row][col]
-            # Converti il valore in binario a 4 bit
-            bin_value = format(sbox_value, '04b')
-            
-            # Crea termini per l'AND gate
-            and_terms = []
-            for j, bit in enumerate(bin_comb):
-                if bit == '1':
-                    and_terms.append(input_wires[j])
-                else:
-                    not_wire = f"not_{input_wires[j]}"
-                    if not_wire not in circuit.nodes():
-                        circuit.add(not_wire, 'not', fanin=[input_wires[j]])
-                    and_terms.append(not_wire)
-            
-            # Crea l'AND gate per questa combinazione
-            and_wire = f"sbox{sbox_number}_and_{comb_idx}"
-            circuit.add(and_wire, 'and', fanin=and_terms)
-            
-            # Per ogni bit di output che è 1, aggiungi questo AND all'OR corrispondente
-            for j, bit in enumerate(bin_value):
-                if bit == '1':
-                    or_inputs[j].append(and_wire)
-        
-        # Crea gli OR gate e le uscite
+        # Collect the output nodes
+        sbox_out_wires = []
         for j in range(4):
-            if or_inputs[j]:  # Se ci sono input per questo OR
-                or_wire = f"sbox{sbox_number}_or_{j}"
-                circuit.add(or_wire, 'or', fanin=or_inputs[j])
-                circuit.add(output_wires[j], 'buf', fanin=[or_wire])
-            else:  # Se non ci sono input (sempre 0)
-                const_wire = f"const0_{sbox_number}_{j}"
-                if const_wire not in circuit.nodes():
-                    circuit.add(const_wire, 'const0')
-                circuit.add(output_wires[j], 'buf', fanin=[const_wire])
+            out_wire = f"{sbox_prefix}_out{j}"
+            sbox_out_wires.append(out_wire)
             
-            sbox_outputs.append(output_wires[j])
+        sbox_outputs.extend(sbox_out_wires)
     
     # Permutazione P finale (da 32 a 32 bit)
     permuted = p_permutation(circuit, sbox_outputs)
     
     return permuted
-
 
 def des_round(circuit, left_half, right_half, subkey, round_num):
     """
