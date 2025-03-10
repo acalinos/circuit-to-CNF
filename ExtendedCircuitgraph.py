@@ -59,7 +59,80 @@ def manual_tseitin_cnf(circuit):
     
     return formula, var_map
 
-def simulate_circuit(circuit, inputs):
+def simulate_circuit(circuit, input_values):
+    """
+    Simula un circuito con input specificati e restituisce tutti i valori dei nodi.
+    
+    Args:
+        circuit: Circuito cg da simulare
+        input_values: Dizionario con valori per i nodi di input
+        
+    Returns:
+        Dizionario con valori booleani per tutti i nodi
+    """
+    node_values = input_values.copy()  # Inizializza con i valori di input forniti
+    
+    # Aggiungi valori predefiniti per tutti i nodi mancanti
+    for node in circuit.nodes():
+        if node not in node_values:
+            # Inizializza gli input mancanti a False
+            if circuit.type(node) == 'input':
+                node_values[node] = False
+            # Inizializza i nodi const0/const1 ai loro valori
+            elif circuit.type(node) == 'const0':
+                node_values[node] = False
+            elif circuit.type(node) == 'const1':
+                node_values[node] = True
+    
+    # Usa l'ordine topologico per valutare i nodi in sequenza
+    for node in circuit.topo_sort():
+        # Salta i nodi già valutati (input e costanti)
+        if node in node_values:
+            continue
+        
+        # Verifica se tutti i nodi di input sono presenti
+        missing_inputs = False
+        for in_node in circuit.fanin(node):
+            if in_node not in node_values:
+                print(f"Errore: nodo {in_node} necessario per {node} non è stato valutato")
+                missing_inputs = True
+        
+        if missing_inputs:
+            continue
+        
+        # Ottieni i valori degli input
+        in_values = [node_values[in_node] for in_node in circuit.fanin(node)]
+        
+        # Valuta il nodo in base al suo tipo
+        gate_type = circuit.type(node)
+        
+        if gate_type == 'and':
+            node_values[node] = all(in_values)
+        elif gate_type == 'or':
+            node_values[node] = any(in_values)
+        elif gate_type == 'not':
+            node_values[node] = not in_values[0]
+        elif gate_type == 'xor':
+            node_values[node] = sum(in_values) % 2 == 1
+        elif gate_type == 'nand':
+            node_values[node] = not all(in_values)
+        elif gate_type == 'nor':
+            node_values[node] = not any(in_values)
+        elif gate_type == 'xnor':
+            node_values[node] = sum(in_values) % 2 == 0
+        elif gate_type == 'buf':
+            node_values[node] = in_values[0]
+        else:
+            raise ValueError(f"Tipo di porta {gate_type} non supportato")
+    
+    # Verifica che tutti i nodi siano stati valutati
+    for node in circuit.nodes():
+        if node not in node_values:
+            print(f"Avviso: il nodo {node} non è stato valutato")
+    
+    return node_values
+
+def simulate_circuit_vecchia(circuit, inputs):
     node_values = inputs.copy()
     topo_order = []
     visited = set()

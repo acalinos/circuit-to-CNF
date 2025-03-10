@@ -51,6 +51,25 @@ def main():
         # Imposta gli output
         for wire in output_wires:
             circuit.set_output(wire)
+
+        print(f"Numero totale di nodi nel circuito: {len(circuit.nodes())}")
+        print(f"Il nodo r1_sbox4_not_in0 esiste? {'Sì' if 'r1_sbox4_not_in0' in circuit.nodes() else 'No'}")
+
+        # Verifica dei nodi problematici noti
+        problematic_nodes = [
+            'r1_sbox4_not_in0', 'r1_sbox5_not_in4', 'r1_sbox6_not_in1'
+        ]
+
+        for node in problematic_nodes:
+            if node in circuit.nodes():
+                print(f"Il nodo {node} esiste nel circuito")
+                # Verifica anche i suoi fanin
+                print(f"  Fanin: {list(circuit.fanin(node))}")
+                for fanin_node in circuit.fanin(node):
+                    if fanin_node not in circuit.nodes():
+                        print(f"  !! Il nodo di fanin {fanin_node} non esiste !!")
+            else:
+                print(f"Il nodo {node} NON esiste nel circuito")
         
         # Simula il circuito
         result = simulate_circuit(circuit, input_values)
