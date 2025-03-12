@@ -1,19 +1,23 @@
 import circuitgraph as cg
 from ExtendedCircuitgraph import manual_tseitin_cnf, simulate_circuit
 
+DEBUG = True
+
+def debug_print(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
 # Permutazione generica
 def apply_permutation(circuit, input_wires, perm_table, prefix):
-    """
-    Applica una permutazione a un insieme di bit.
-    """
     output_wires = []
     for i, pos in enumerate(perm_table):
         out_wire = f"{prefix}p{i}"
         circuit.add(out_wire, 'buf', fanin=[input_wires[pos - 1]])
         output_wires.append(out_wire)
+    debug_print(f"[DEBUG] Permutazione {prefix}: {output_wires}")
     return output_wires
 
-# Tabella delle permutazioni fisse
+# Tabelle di permutazione
 IP_TABLE = [58, 50, 42, 34, 26, 18, 10, 2,
             60, 52, 44, 36, 28, 20, 12, 4,
             62, 54, 46, 38, 30, 22, 14, 6,
@@ -23,11 +27,9 @@ IP_TABLE = [58, 50, 42, 34, 26, 18, 10, 2,
             61, 53, 45, 37, 29, 21, 13, 5,
             63, 55, 47, 39, 31, 23, 15, 7]
 
-# Initial Permutation (IP)
 def initial_permutation(circuit, input_wires):
     return apply_permutation(circuit, input_wires, IP_TABLE, "IP")
 
-# Espansione E (da 32 a 48 bit)
 EXPANSION_TABLE = [32,  1,  2,  3,  4,  5,
                     4,  5,  6,  7,  8,  9,
                     8,  9, 10, 11, 12, 13,
@@ -40,7 +42,6 @@ EXPANSION_TABLE = [32,  1,  2,  3,  4,  5,
 def expansion_permutation(circuit, input_wires, prefix="E_"):
     return apply_permutation(circuit, input_wires, EXPANSION_TABLE, prefix)
 
-# Permutazione P
 P_TABLE = [16,  7, 20, 21,
            29, 12, 28, 17,
             1, 15, 23, 26,
@@ -50,14 +51,9 @@ P_TABLE = [16,  7, 20, 21,
            19, 13, 30,  6,
            22, 11,  4, 25]
 
-
 def p_permutation(circuit, input_wires, prefix="P_"):
-    """
-    Implementa la permutazione P utilizzata dopo le S-Box.
-    """
     return apply_permutation(circuit, input_wires, P_TABLE, prefix)
 
-# Final Permutation (IP^-1)
 FP_TABLE = [40, 8, 48, 16, 56, 24, 64, 32,
             39, 7, 47, 15, 55, 23, 63, 31,
             38, 6, 46, 14, 54, 22, 62, 30,
@@ -68,12 +64,9 @@ FP_TABLE = [40, 8, 48, 16, 56, 24, 64, 32,
             33, 1, 41, 9, 49, 17, 57, 25]
 
 def final_permutation(circuit, input_wires):
-    """
-    Implementa la permutazione finale (inversa della permutazione iniziale).
-    """
     return apply_permutation(circuit, input_wires, FP_TABLE, "FP")
 
-# S-Box tables
+# Tabelle S-Box
 SBOX_TABLES = [
     # S1
     [
@@ -134,145 +127,74 @@ SBOX_TABLES = [
 ]
 
 def f_function(circuit, right_half, subkey, round_num):
-    """
-    Implementa la funzione F del DES.
-    """
-    # Usa un prefisso round-specifico per tutti i nodi
     round_prefix = f"r{round_num}_"
-    
-    # Espansione da 32 a 48 bit
     expanded = expansion_permutation(circuit, right_half, f"{round_prefix}E_")
-    
-    # XOR con la sottochiave
+    debug_print(f"[DEBUG] Round {round_num} - Espansione: {expanded}")
     xor_outputs = []
     for i in range(48):
         xor_wire = f"{round_prefix}xor_E_K_{i}"
         circuit.add(xor_wire, 'xor', fanin=[expanded[i], subkey[i]])
         xor_outputs.append(xor_wire)
-    
-    # Dividi gli input in 8 gruppi da 6 bit per le S-box
+    debug_print(f"[DEBUG] Round {round_num} - XOR outputs: {xor_outputs}")
     sbox_inputs = [xor_outputs[i:i+6] for i in range(0, 48, 6)]
     sbox_outputs = []
-    
-    # Applica le 8 S-box direttamente nel circuito principale
     for sbox_number in range(1, 9):
-        print(f"Creazione S-Box {sbox_number}")
-        
-        i = sbox_number - 1  # Indice 0-based
-        sbox_idx = i
-        sbox_table = SBOX_TABLES[sbox_idx]
-        
-        # Input di questo S-box
+        i = sbox_number - 1
+        sbox_table = SBOX_TABLES[i]
         input_wires = sbox_inputs[i]
-        
-        # Output wires per questa S-box (4 bit)
         output_wires = [f"{round_prefix}sbox{sbox_number}_out{j}" for j in range(4)]
-        
-        # Crea tutti i NOT gates necessari
         not_wires_dict = {}
         for j, wire in enumerate(input_wires):
             not_wire_name = f"{round_prefix}sbox{sbox_number}_not_in{j}"
-            print(f"  Creazione nodo NOT: {not_wire_name} con fanin {wire}")
-            # Verifica se il nodo esiste già prima di crearlo
             if not_wire_name not in circuit.nodes():
                 circuit.add(not_wire_name, 'not', fanin=[wire])
             not_wires_dict[j] = not_wire_name
-        
-        # Dizionario per tracciare gli input degli OR gate
         or_inputs = {j: [] for j in range(4)}
-        
-        # Processo tutte le 64 possibili combinazioni di input
         for comb_idx in range(64):
-            # Converti l'indice in binario a 6 bit
             bin_comb = format(comb_idx, '06b')
-            
-            # Calcola riga e colonna per la S-Box
-            row = int(bin_comb[0] + bin_comb[5], 2)  # Bit esterno e interno formano la riga
-            col = int(bin_comb[1:5], 2)             # 4 bit centrali formano la colonna
-            
-            # Ottieni il valore dalla tabella S-Box
+            row = int(bin_comb[0] + bin_comb[5], 2)
+            col = int(bin_comb[1:5], 2)
             sbox_value = sbox_table[row][col]
-            # Converti il valore in binario a 4 bit
             bin_value = format(sbox_value, '04b')
-            
-            # Crea termini per l'AND gate
             and_terms = []
             for j, bit in enumerate(bin_comb):
                 if bit == '1':
                     and_terms.append(input_wires[j])
                 else:
-                    # Usa il NOT gate già creato
                     and_terms.append(not_wires_dict[j])
-            
-            # Crea l'AND gate per questa combinazione
             and_wire = f"{round_prefix}sbox{sbox_number}_and_{comb_idx}"
             circuit.add(and_wire, 'and', fanin=and_terms)
-            
-            # Per ogni bit di output che è 1, aggiungi questo AND all'OR corrispondente
             for j, bit in enumerate(bin_value):
                 if bit == '1':
                     or_inputs[j].append(and_wire)
-        
-        # Crea gli OR gate e le uscite
         for j in range(4):
-            if or_inputs[j]:  # Se ci sono input per questo OR
+            if or_inputs[j]:
                 or_wire = f"{round_prefix}sbox{sbox_number}_or_{j}"
                 circuit.add(or_wire, 'or', fanin=or_inputs[j])
                 circuit.add(output_wires[j], 'buf', fanin=[or_wire])
-            else:  # Se non ci sono input (sempre 0)
+            else:
                 const_wire = f"{round_prefix}const0_{sbox_number}_{j}"
                 if const_wire not in circuit.nodes():
                     circuit.add(const_wire, 'const0')
                 circuit.add(output_wires[j], 'buf', fanin=[const_wire])
-            
             sbox_outputs.append(output_wires[j])
-    
-    # Permutazione P finale (da 32 a 32 bit)
+        debug_print(f"[DEBUG] Round {round_num} - SBox {sbox_number} output wires: {output_wires}")
     permuted = p_permutation(circuit, sbox_outputs, f"{round_prefix}P_")
-    
+    debug_print(f"[DEBUG] Round {round_num} - Permutazione P: {permuted}")
     return permuted
 
 def des_round(circuit, left_half, right_half, subkey, round_num):
-    """
-    Esegue un singolo round del DES.
-    
-    Args:
-        circuit: Circuito cg esistente
-        left_half: Lista dei 32 wire del lato sinistro
-        right_half: Lista dei 32 wire del lato destro
-        subkey: Lista dei 48 wire della sottochiave
-        round_num: Numero del round corrente
-        
-    Returns:
-        Tuple con le liste dei 32 wire sinistri e destri per il round successivo
-    """
-    # Il nuovo lato sinistro è il vecchio lato destro
     new_left = right_half
-    
-    # Calcola la funzione F
     f_result = f_function(circuit, right_half, subkey, round_num)
-    
-    # XOR tra il vecchio lato sinistro e l'output della funzione F
     new_right = []
     for i in range(32):
         xor_wire = f"r{round_num}_R_{i}"
         circuit.add(xor_wire, 'xor', fanin=[left_half[i], f_result[i]])
         new_right.append(xor_wire)
-    
+    debug_print(f"[DEBUG] Round {round_num} - new_right: {new_right}")
     return new_left, new_right
 
 def key_schedule(circuit, key_wires):
-    """
-    Implementa lo schedule delle chiavi per generare le 16 sottochiavi.
-    
-    Args:
-        circuit: Circuito cg esistente
-        key_wires: Lista dei 64 wire della chiave iniziale
-        
-    Returns:
-        Lista di 16 liste, ognuna contenente 48 wire per una sottochiave
-    """
-    # PC-1: Permuted Choice 1 (da 64 a 56 bit)
     PC1_TABLE = [57, 49, 41, 33, 25, 17, 9,
                  1, 58, 50, 42, 34, 26, 18,
                  10, 2, 59, 51, 43, 35, 27,
@@ -281,17 +203,10 @@ def key_schedule(circuit, key_wires):
                  7, 62, 54, 46, 38, 30, 22,
                  14, 6, 61, 53, 45, 37, 29,
                  21, 13, 5, 28, 20, 12, 4]
-    
     pc1_output = apply_permutation(circuit, key_wires, PC1_TABLE, "PC1")
-    
-    # Dividi in metà sinistra e destra (C e D)
     C = pc1_output[:28]
     D = pc1_output[28:]
-    
-    # Schedule di rotazione per ogni round
     SHIFT_SCHEDULE = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
-    
-    # PC-2: Permuted Choice 2 (da 56 a 48 bit)
     PC2_TABLE = [14, 17, 11, 24, 1, 5,
                  3, 28, 15, 6, 21, 10,
                  23, 19, 12, 4, 26, 8,
@@ -300,14 +215,9 @@ def key_schedule(circuit, key_wires):
                  30, 40, 51, 45, 33, 48,
                  44, 49, 39, 56, 34, 53,
                  46, 42, 50, 36, 29, 32]
-    
     subkeys = []
-    
     for i in range(16):
-        # Rotazione circolare a sinistra
         shift = SHIFT_SCHEDULE[i]
-        
-        # Rotazione per C
         new_C = []
         for j in range(28):
             src_idx = (j - shift) % 28
@@ -315,8 +225,6 @@ def key_schedule(circuit, key_wires):
             circuit.add(rot_wire, 'buf', fanin=[C[src_idx]])
             new_C.append(rot_wire)
         C = new_C
-        
-        # Rotazione per D
         new_D = []
         for j in range(28):
             src_idx = (j - shift) % 28
@@ -324,121 +232,63 @@ def key_schedule(circuit, key_wires):
             circuit.add(rot_wire, 'buf', fanin=[D[src_idx]])
             new_D.append(rot_wire)
         D = new_D
-        
-        # Combina C e D e applica PC-2
         CD = C + D
         subkey = apply_permutation(circuit, CD, PC2_TABLE, f"K{i+1}")
         subkeys.append(subkey)
-    
+        debug_print(f"[DEBUG] Sottochiave round {i+1}: {subkey}")
     return subkeys
 
 def des_block(circuit, input_block, key_wires):
-    """
-    Esegue l'intero algoritmo DES su un blocco di input.
-    
-    Args:
-        circuit: Circuito cg esistente
-        input_block: Lista dei 64 wire di input
-        key_wires: Lista dei 64 wire della chiave
-        
-    Returns:
-        Lista dei 64 wire dell'output cifrato
-    """
-    # Genera le sottochiavi
     round_keys = key_schedule(circuit, key_wires)
-    
-    # Permutazione iniziale
     permuted = initial_permutation(circuit, input_block)
-    
-    # Dividi in metà sinistra e destra
     left, right = permuted[:32], permuted[32:]
-    
-    # 16 round di Feistel
     for i in range(16):
         left, right = des_round(circuit, left, right, round_keys[i], i+1)
-    
-    # Scambio finale (contrario al tipico Feistel)
     pre_output = right + left
-    
-    # Permutazione finale
     output_block = final_permutation(circuit, pre_output)
-    
+    debug_print("[DEBUG] Output wires finali:", output_block)
     return output_block
 
 def create_des_circuit(plaintext_hex, key_hex):
-    """
-    Crea un circuito DES completo con input e key specifici.
-    
-    Args:
-        plaintext_hex: Stringa esadecimale di 16 caratteri (64 bit)
-        key_hex: Stringa esadecimale di 16 caratteri (64 bit)
-    
-    Returns:
-        Circuito DES, nomi input e nomi output
-    """
     circuit = cg.Circuit()
-    
-    # Conversione input esadecimale in binario
     plaintext_bin = bin(int(plaintext_hex, 16))[2:].zfill(64)
     key_bin = bin(int(key_hex, 16))[2:].zfill(64)
-    
-    # Crea input wires per il plaintext
     input_wires = []
     for i in range(64):
         wire_name = f"plaintext_{i}"
         circuit.add(wire_name, 'input')
         input_wires.append(wire_name)
-        
-        # Se l'input deve essere fisso, aggiungiamo un buffer con valore costante
         if plaintext_bin[i] == '1':
             circuit.add(f"const1_{i}", 'buf', fanin=[wire_name])
         else:
             circuit.add(f"const0_{i}", 'not', fanin=[wire_name])
-    
-    # Crea input wires per la chiave
     key_wires = []
     for i in range(64):
         wire_name = f"key_{i}"
         circuit.add(wire_name, 'input')
         key_wires.append(wire_name)
-        
-        # Se la chiave deve essere fissa, aggiungiamo un buffer con valore costante
         if key_bin[i] == '1':
             circuit.add(f"key_const1_{i}", 'buf', fanin=[wire_name])
         else:
             circuit.add(f"key_const0_{i}", 'not', fanin=[wire_name])
-    
-    # Esegui l'algoritmo DES
     output_wires = des_block(circuit, input_wires, key_wires)
-    
-    # Marca gli output
     for wire in output_wires:
         circuit.set_output(wire)
-    
+    debug_print("[DEBUG] Circuit creato con", len(circuit.nodes()), "nodi.")
     return circuit, input_wires, output_wires
 
 def des_encrypt(plaintext_hex, key_hex):
-    """
-    Cifra un blocco di plaintext usando DES.
-    
-    Args:
-        plaintext_hex: Stringa esadecimale di 16 caratteri (64 bit)
-        key_hex: Stringa esadecimale di 16 caratteri (64 bit)
-        
-    Returns:
-        Stringa esadecimale del ciphertext
-    """
     circuit, input_wires, output_wires = create_des_circuit(plaintext_hex, key_hex)
-    
-    # Simula il circuito
-    sim_results = simulate_circuit(circuit, {})
-    
-    # Raccogli gli output in ordine
-    output_bits = ""
-    for wire in output_wires:
-        output_bits += "1" if sim_results[wire] else "0"
-    
-    # Converti in esadecimale
-    ciphertext_hex = hex(int(output_bits, 2))[2:].zfill(16)
-    
+    plaintext_bin = bin(int(plaintext_hex, 16))[2:].zfill(64)
+    key_bin = bin(int(key_hex, 16))[2:].zfill(64)
+    input_values = {}
+    for i, bit in enumerate(plaintext_bin):
+        input_values[f"plaintext_{i}"] = (bit == '1')
+    for i, bit in enumerate(key_bin):
+        input_values[f"key_{i}"] = (bit == '1')
+    sim_results = simulate_circuit(circuit, input_values)
+    debug_round1 = {node: sim_results[node] for node in sim_results if node.startswith("r1_")}
+    debug_print("[DEBUG] Stato simulazione round 1:", debug_round1)
+    output_bits = "".join("1" if sim_results[wire] else "0" for wire in output_wires)
+    ciphertext_hex = hex(int(output_bits, 2))[2:].upper().zfill(16)
     return ciphertext_hex
