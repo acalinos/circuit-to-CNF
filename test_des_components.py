@@ -11,9 +11,9 @@ def main():
         sys.stdout = f
         
         print("=== Test DES Implementation ===")
-        plaintext = "0000000000000000"
+        plaintext = "0123456789ABCDEF"
         key = "0000000000000000"
-        expected_ciphertext = "8CA64DE9C1B123A7"
+        expected_ciphertext = "95F8A5E5DD31D900"
         print(f"Test Vector 1:")
         print(f"Plaintext: {plaintext}")
         print(f"Key:       {key}")
