@@ -25,3 +25,29 @@ Verrà poi studiata l'applicabilità della libreria ottenuta ad alcuni cifrari c
 + Studio e sperimentazione con alcune librerie Python per il problema SAT e per il progetto e la simulazione di circuiti.
 + Implementazione della libreria in Python.
 + Testing della libreria su Cifrari e Hash Functions.
+
+# TEST
+
++ Test Vector 1:
+Plaintext: 0000000000000000
+Key:       0000000000000000
+Expected:  8CA64DE9C1B123A7
+Test: PASSED
+
++ Test Vector 2:
+Plaintext: FFFFFFFFFFFFFFFF
+Key:       FFFFFFFFFFFFFFFF
+Expected:  7359B2163E4EDC58
+Test: PASSED
+
++ Test Vector 3:
+Plaintext: 0123456789ABCDEF
+Key:       133457799BBCDFF1
+Expected:  85E813540F0AB405
+Test: FAILED
+
++ Test Vector 4:
+Plaintext: 0123456789ABCDEF
+Key:       0000000000000000
+Expected:  95F8A5E5DD31D900
+Test: FAILED
