@@ -122,6 +122,10 @@ def simulate_circuit(circuit, input_values):
             node_values[node] = sum(in_values) % 2 == 0
         elif gate_type == 'buf':
             node_values[node] = in_values[0]
+        elif circuit.type(node) == 'const0':
+            node_values[node] = False
+        elif circuit.type(node) == 'const1':
+            node_values[node] = True
         else:
             raise ValueError(f"Tipo di porta {gate_type} non supportato")
     
@@ -160,6 +164,7 @@ def simulate_circuit_vecchia(circuit, inputs):
             node_values[node] = any(in_values)
         elif circuit.type(node) == 'xor':
             node_values[node] = sum(in_values) % 2 == 1
+        
     
     return {out: int(node_values[out]) for out in circuit.outputs}
 

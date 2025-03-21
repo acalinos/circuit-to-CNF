@@ -31,13 +31,13 @@ def initial_permutation(circuit, input_wires):
     return apply_permutation(circuit, input_wires, IP_TABLE, "IP")
 
 EXPANSION_TABLE = [32,  1,  2,  3,  4,  5,
-                    4,  5,  6,  7,  8,  9,
-                    8,  9, 10, 11, 12, 13,
-                   12, 13, 14, 15, 16, 17,
-                   16, 17, 18, 19, 20, 21,
-                   20, 21, 22, 23, 24, 25,
-                   24, 25, 26, 27, 28, 29,
-                   28, 29, 30, 31, 32,  1]
+                   4,  5,  6,  7,  8,  9,
+                   8,  9, 10, 11, 12, 13,
+                  12, 13, 14, 15, 16, 17,
+                  16, 17, 18, 19, 20, 21,
+                  20, 21, 22, 23, 24, 25,
+                  24, 25, 26, 27, 28, 29,
+                  28, 29, 30, 31, 32,  1]
 
 def expansion_permutation(circuit, input_wires, prefix="E_"):
     return apply_permutation(circuit, input_wires, EXPANSION_TABLE, prefix)
@@ -175,7 +175,7 @@ def f_function(circuit, right_half, subkey, round_num):
             else:
                 const_wire = f"{round_prefix}const0_{sbox_number}_{j}"
                 if const_wire not in circuit.nodes():
-                    circuit.add(const_wire, 'const0')
+                    circuit.add(const_wire, 'buf', fanin=["CONST0"])
                 circuit.add(output_wires[j], 'buf', fanin=[const_wire])
             sbox_outputs.append(output_wires[j])
         debug_print(f"[DEBUG] Round {round_num} - SBox {sbox_number} output wires: {output_wires}")
@@ -218,16 +218,18 @@ def key_schedule(circuit, key_wires):
     subkeys = []
     for i in range(16):
         shift = SHIFT_SCHEDULE[i]
+        # Rotazione a sinistra (j + shift) % 28
         new_C = []
         for j in range(28):
-            src_idx = (j - shift) % 28
+            src_idx = (j + shift) % 28
             rot_wire = f"C{i+1}_{j}"
             circuit.add(rot_wire, 'buf', fanin=[C[src_idx]])
             new_C.append(rot_wire)
         C = new_C
+
         new_D = []
         for j in range(28):
-            src_idx = (j - shift) % 28
+            src_idx = (j + shift) % 28
             rot_wire = f"D{i+1}_{j}"
             circuit.add(rot_wire, 'buf', fanin=[D[src_idx]])
             new_D.append(rot_wire)
@@ -251,26 +253,33 @@ def des_block(circuit, input_block, key_wires):
 
 def create_des_circuit(plaintext_hex, key_hex):
     circuit = cg.Circuit()
+    # Nodi costanti globali
+    circuit.add("CONST0", "input")
+    circuit.add("CONST1", "input")
     plaintext_bin = bin(int(plaintext_hex, 16))[2:].zfill(64)
     key_bin = bin(int(key_hex, 16))[2:].zfill(64)
     input_wires = []
+    # Creazione dei nodi per il plaintext
     for i in range(64):
         wire_name = f"plaintext_{i}"
         circuit.add(wire_name, 'input')
         input_wires.append(wire_name)
         if plaintext_bin[i] == '1':
-            circuit.add(f"const1_{i}", 'buf', fanin=[wire_name])
+            circuit.add(f"const1_{i}", 'buf', fanin=["CONST1"])
         else:
-            circuit.add(f"const0_{i}", 'not', fanin=[wire_name])
+            circuit.add(f"const0_{i}", 'buf', fanin=["CONST0"])
+
     key_wires = []
+    # Creazione dei nodi per la chiave
     for i in range(64):
         wire_name = f"key_{i}"
         circuit.add(wire_name, 'input')
         key_wires.append(wire_name)
         if key_bin[i] == '1':
-            circuit.add(f"key_const1_{i}", 'buf', fanin=[wire_name])
+            circuit.add(f"key_const1_{i}", 'buf', fanin=["CONST1"])
         else:
-            circuit.add(f"key_const0_{i}", 'not', fanin=[wire_name])
+            circuit.add(f"key_const0_{i}", 'buf', fanin=["CONST0"])
+
     output_wires = des_block(circuit, input_wires, key_wires)
     for wire in output_wires:
         circuit.set_output(wire)
@@ -282,6 +291,9 @@ def des_encrypt(plaintext_hex, key_hex):
     plaintext_bin = bin(int(plaintext_hex, 16))[2:].zfill(64)
     key_bin = bin(int(key_hex, 16))[2:].zfill(64)
     input_values = {}
+    # Assegna valori costanti globali
+    input_values["CONST0"] = False
+    input_values["CONST1"] = True
     for i, bit in enumerate(plaintext_bin):
         input_values[f"plaintext_{i}"] = (bit == '1')
     for i, bit in enumerate(key_bin):

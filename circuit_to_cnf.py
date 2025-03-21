@@ -32,6 +32,101 @@ def create_simple_circuit():
     return circuit
 
 def manual_tseitin_cnf(circuit):
+    clauses = []
+    nodes = list(circuit.nodes())
+    var_map = {node: i+1 for i, node in enumerate(nodes)}
+    
+    for node in nodes:
+        node_type = circuit.type(node)
+        inputs = list(circuit.fanin(node))
+        
+        # Salta gli input e i nodi costanti
+        if node_type == 'input' or node_type.startswith('const'):
+            continue
+        
+        elif node_type == 'buf':
+            in_var = var_map[inputs[0]]
+            out_var = var_map[node]
+            # Equivalenza: out <-> in
+            clauses.append([-in_var, out_var])
+            clauses.append([in_var, -out_var])
+        
+        elif node_type == 'not':
+            in_var = var_map[inputs[0]]
+            out_var = var_map[node]
+            # Equivalenza: out <-> ¬in
+            clauses.append([in_var, out_var])
+            clauses.append([-in_var, -out_var])
+        
+        elif node_type == 'and':
+            out_var = var_map[node]
+            in_vars = [var_map[inp] for inp in inputs]
+            # Se out è vero allora ogni ingresso deve esserlo
+            for in_var in in_vars:
+                clauses.append([-out_var, in_var])
+            # Se tutti gli ingressi sono veri allora out è vero
+            clauses.append([-v for v in in_vars] + [out_var])
+        
+        elif node_type == 'or':
+            out_var = var_map[node]
+            in_vars = [var_map[inp] for inp in inputs]
+            # Se out è falso allora almeno un ingresso deve esserlo (in realtà, se un ingresso è vero allora out deve esserlo)
+            clauses.append([-out_var] + in_vars)
+            for in_var in in_vars:
+                clauses.append([-in_var, out_var])
+        
+        elif node_type == 'nand':
+            out_var = var_map[node]
+            in_vars = [var_map[inp] for inp in inputs]
+            # NAND: out = ¬(and)
+            # Se un ingresso è falso allora out deve essere vero
+            for in_var in in_vars:
+                clauses.append([in_var, out_var])
+            # Se tutti gli ingressi sono veri allora out deve essere falso
+            clauses.append([-v for v in in_vars] + [-out_var])
+        
+        elif node_type == 'nor':
+            out_var = var_map[node]
+            in_vars = [var_map[inp] for inp in inputs]
+            # NOR: out = ¬(or)
+            # Se un ingresso è vero allora out deve essere falso
+            for in_var in in_vars:
+                clauses.append([-in_var, -out_var])
+            # Se tutti gli ingressi sono falsi allora out deve essere vero
+            clauses.append(in_vars + [out_var])
+        
+        elif node_type == 'xor':
+            out_var = var_map[node]
+            if len(inputs) != 2:
+                raise ValueError("XOR gate con numero di ingressi diverso da 2 non supportato")
+            a_var, b_var = var_map[inputs[0]], var_map[inputs[1]]
+            # Equivalenza: out è vero se e solo se gli ingressi sono differenti
+            clauses.append([-a_var, -b_var, -out_var])
+            clauses.append([a_var, b_var, -out_var])
+            clauses.append([-a_var, b_var, out_var])
+            clauses.append([a_var, -b_var, out_var])
+        
+        elif node_type == 'xnor':
+            out_var = var_map[node]
+            if len(inputs) != 2:
+                raise ValueError("XNOR gate con numero di ingressi diverso da 2 non supportato")
+            a_var, b_var = var_map[inputs[0]], var_map[inputs[1]]
+            # Equivalenza: out è vero se e solo se gli ingressi sono uguali
+            clauses.append([-a_var, b_var, out_var])
+            clauses.append([a_var, -b_var, out_var])
+            clauses.append([-a_var, -b_var, -out_var])
+            clauses.append([a_var, b_var, -out_var])
+        
+        else:
+            raise ValueError(f"Tipo di porta '{node_type}' non supportato per la conversione in CNF")
+    
+    formula = CNF()
+    for clause in clauses:
+        formula.append(clause)
+    
+    return formula, var_map
+
+def manual_tseitin_cnf_vecchia(circuit):
     """
     Implementazione manuale della conversione Tseitin del circuito in CNF.
     """
