@@ -177,7 +177,8 @@ def f_function(circuit, right_half, subkey, round_num):
                 if const_wire not in circuit.nodes():
                     circuit.add(const_wire, 'buf', fanin=["CONST0"])
                 circuit.add(output_wires[j], 'buf', fanin=[const_wire])
-            sbox_outputs.append(output_wires[j])
+        # NON invertiamo l'ordine: usiamo l'ordine naturale dei bit (MSB in output_wires[0])
+        sbox_outputs.extend(output_wires)
         debug_print(f"[DEBUG] Round {round_num} - SBox {sbox_number} output wires: {output_wires}")
     permuted = p_permutation(circuit, sbox_outputs, f"{round_prefix}P_")
     debug_print(f"[DEBUG] Round {round_num} - Permutazione P: {permuted}")
