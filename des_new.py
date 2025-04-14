@@ -256,7 +256,7 @@ def des_encrypt(plaintext_hex, key_hex):
 def main():
     # Test vector standard DES
     plaintext = "0123456789ABCDEF"
-    # Chiave tutto a 0 (64 bit) – il ciphertext atteso per questa chiave è 95F8A5E5DD31D900
+    # Chiave tutto a 0 (64 bit)
     key = "0000000000000000"
     expected_ciphertext = "95F8A5E5DD31D900"
     
