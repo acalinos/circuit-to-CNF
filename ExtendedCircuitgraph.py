@@ -169,7 +169,7 @@ def simulate_multiple_circuits_parallel(circuits, input_values_list):
             results[idx] = future.result()
     return results
 
-# MAIN - Esempio di utilizzo
+# Esempio di utilizzo
 
 # if __name__ == "__main__":
 #     # Esempio 1: simulazione semplice di un circuito (sommatore a 1 bit)
