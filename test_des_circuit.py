@@ -1,6 +1,6 @@
 import circuitgraph as cg
 from ExtendedCircuitgraph import manual_tseitin_cnf, simulate_circuit
-from des_components import *
+from des_circuit import *
 import sys
 
 # Test vector standard DES (da NIST)
