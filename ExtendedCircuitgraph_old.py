@@ -1,8 +1,12 @@
 import circuitgraph as cg
 from pysat.formula import CNF
 from pysat.solvers import Glucose3
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def create_simple_circuit():
+    """
+    Crea un semplice circuito (sommatore a 1 bit) con circuitgraph.
+    """
     circuit = cg.Circuit()
     circuit.add('a', 'input')
     circuit.add('b', 'input')
@@ -37,7 +41,7 @@ def manual_tseitin_cnf(circuit):
             in_vars = [var_map[inp] for inp in inputs]
             for in_var in in_vars:
                 clauses.append([-out_var, in_var])
-            clauses.append([-var for var in in_vars] + [out_var])
+            clauses.append([-v for v in in_vars] + [out_var])
         elif node_type == 'or':
             out_var = var_map[node]
             in_vars = [var_map[inp] for inp in inputs]
@@ -61,49 +65,34 @@ def manual_tseitin_cnf(circuit):
 
 def simulate_circuit(circuit, input_values):
     """
-    Simula un circuito con input specificati e restituisce tutti i valori dei nodi.
-    
-    Args:
-        circuit: Circuito cg da simulare
-        input_values: Dizionario con valori per i nodi di input
-        
-    Returns:
-        Dizionario con valori booleani per tutti i nodi
+    Simula un circuito con input specificati e restituisce un dizionario con i valori dei nodi.
     """
-    node_values = input_values.copy()  # Inizializza con i valori di input forniti
+    node_values = input_values.copy()  # Inizializza con gli input forniti
     
-    # Aggiungi valori predefiniti per tutti i nodi mancanti
+    # Aggiunge valori predefiniti per i nodi mancanti
     for node in circuit.nodes():
         if node not in node_values:
-            # Inizializza gli input mancanti a False
             if circuit.type(node) == 'input':
                 node_values[node] = False
-            # Inizializza i nodi const0/const1 ai loro valori
             elif circuit.type(node) == 'const0':
                 node_values[node] = False
             elif circuit.type(node) == 'const1':
                 node_values[node] = True
     
-    # Usa l'ordine topologico per valutare i nodi in sequenza
+    # Valuta i nodi in ordine topologico
     for node in circuit.topo_sort():
-        # Salta i nodi già valutati (input e costanti)
         if node in node_values:
             continue
         
-        # Verifica se tutti i nodi di input sono presenti
         missing_inputs = False
         for in_node in circuit.fanin(node):
             if in_node not in node_values:
                 print(f"Errore: nodo {in_node} necessario per {node} non è stato valutato")
                 missing_inputs = True
-        
         if missing_inputs:
             continue
         
-        # Ottieni i valori degli input
         in_values = [node_values[in_node] for in_node in circuit.fanin(node)]
-        
-        # Valuta il nodo in base al suo tipo
         gate_type = circuit.type(node)
         
         if gate_type == 'and':
@@ -129,44 +118,11 @@ def simulate_circuit(circuit, input_values):
         else:
             raise ValueError(f"Tipo di porta {gate_type} non supportato")
     
-    # Verifica che tutti i nodi siano stati valutati
     for node in circuit.nodes():
         if node not in node_values:
             print(f"Avviso: il nodo {node} non è stato valutato")
     
     return node_values
-
-def simulate_circuit_vecchia(circuit, inputs):
-    node_values = inputs.copy()
-    topo_order = []
-    visited = set()
-    
-    def dfs(node):
-        if node in visited:
-            return
-        visited.add(node)
-        for in_node in circuit.fanin(node):
-            dfs(in_node)
-        topo_order.append(node)
-    
-    for node in circuit.nodes():
-        dfs(node)
-    
-    for node in topo_order:
-        if circuit.type(node) == 'input':
-            continue
-        in_values = [node_values[in_node] for in_node in circuit.fanin(node)]
-        if circuit.type(node) == 'buf':
-            node_values[node] = in_values[0]
-        elif circuit.type(node) == 'and':
-            node_values[node] = all(in_values)
-        elif circuit.type(node) == 'or':
-            node_values[node] = any(in_values)
-        elif circuit.type(node) == 'xor':
-            node_values[node] = sum(in_values) % 2 == 1
-        
-    
-    return {out: int(node_values[out]) for out in circuit.outputs}
 
 def print_cnf_formula(formula):
     print(f"p cnf {formula.nv} {len(formula.clauses)}")
@@ -189,3 +145,48 @@ def solve_cnf(formula, circuit, var_map):
     else:
         print("Formula insoddisfacibile.")
     solver.delete()
+
+def simulate_multiple_circuits_parallel(circuits, input_values_list):
+    """
+    Simula una lista di circuiti in parallelo.
+    
+    Parametri:
+      - circuits: lista di oggetti Circuit.
+      - input_values_list: lista di dizionari, ciascuno contenente i valori di input per il corrispondente circuito.
+    
+    Restituisce:
+      - Una lista dei dizionari di output ottenuti dalla simulazione di ciascun circuito.
+    """
+    results = [None] * len(circuits)
+    with ThreadPoolExecutor() as executor:
+        # Mappa ogni simulazione a un indice della lista
+        future_to_index = {
+            executor.submit(simulate_circuit, circuit, input_values): idx
+            for idx, (circuit, input_values) in enumerate(zip(circuits, input_values_list))
+        }
+        for future in as_completed(future_to_index):
+            idx = future_to_index[future]
+            results[idx] = future.result()
+    return results
+
+# Esempio di utilizzo
+
+# if __name__ == "__main__":
+#     # Esempio 1: simulazione semplice di un circuito (sommatore a 1 bit)
+#     simple_circuit = create_simple_circuit()
+#     print("Simulazione semplice del circuito (sommatore a 1 bit):")
+#     test_inputs = {'a': 1, 'b': 1, 'cin': 0}
+#     result = simulate_circuit(simple_circuit, test_inputs)
+#     print("Output:", result)
+    
+#     # Esempio 2: simulazione in parallelo di più circuiti
+#     circuits = [create_simple_circuit() for _ in range(3)]
+#     inputs_list = [
+#         {'a': 1, 'b': 0, 'cin': 1},
+#         {'a': 0, 'b': 1, 'cin': 1},
+#         {'a': 1, 'b': 1, 'cin': 1}
+#     ]
+#     parallel_results = simulate_multiple_circuits_parallel(circuits, inputs_list)
+#     print("\nSimulazione parallela di più circuiti:")
+#     for idx, res in enumerate(parallel_results):
+#         print(f"Circuito {idx+1}: {res}")

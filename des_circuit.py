@@ -1,5 +1,5 @@
 import circuitgraph as cg
-from ExtendedCircuitgraph import manual_tseitin_cnf, simulate_circuit
+from ExtendedCircuitgraph_old import manual_tseitin_cnf, simulate_circuit
 
 DEBUG = True
 
@@ -14,7 +14,7 @@ def apply_permutation(circuit, input_wires, perm_table, prefix):
         out_wire = f"{prefix}p{i}"
         circuit.add(out_wire, 'buf', fanin=[input_wires[pos - 1]])
         output_wires.append(out_wire)
-    debug_print(f"[DEBUG] Permutazione {prefix}: {output_wires}")
+    # debug_print(f"[DEBUG] Permutazione {prefix}: {output_wires}")
     return output_wires
 
 # Tabelle di permutazione
@@ -129,13 +129,13 @@ SBOX_TABLES = [
 def f_function(circuit, right_half, subkey, round_num):
     round_prefix = f"r{round_num}_"
     expanded = expansion_permutation(circuit, right_half, f"{round_prefix}E_")
-    debug_print(f"[DEBUG] Round {round_num} - Espansione: {expanded}")
+    # debug_print(f"[DEBUG] Round {round_num} - Espansione: {expanded}")
     xor_outputs = []
     for i in range(48):
         xor_wire = f"{round_prefix}xor_E_K_{i}"
         circuit.add(xor_wire, 'xor', fanin=[expanded[i], subkey[i]])
         xor_outputs.append(xor_wire)
-    debug_print(f"[DEBUG] Round {round_num} - XOR outputs: {xor_outputs}")
+    # debug_print(f"[DEBUG] Round {round_num} - XOR outputs: {xor_outputs}")
     sbox_inputs = [xor_outputs[i:i+6] for i in range(0, 48, 6)]
     sbox_outputs = []
     for sbox_number in range(1, 9):
@@ -179,9 +179,9 @@ def f_function(circuit, right_half, subkey, round_num):
                 circuit.add(output_wires[j], 'buf', fanin=[const_wire])
         # NON invertiamo l'ordine: usiamo l'ordine naturale dei bit (MSB in output_wires[0])
         sbox_outputs.extend(output_wires)
-        debug_print(f"[DEBUG] Round {round_num} - SBox {sbox_number} output wires: {output_wires}")
+        # debug_print(f"[DEBUG] Round {round_num} - SBox {sbox_number} output wires: {output_wires}")
     permuted = p_permutation(circuit, sbox_outputs, f"{round_prefix}P_")
-    debug_print(f"[DEBUG] Round {round_num} - Permutazione P: {permuted}")
+    # debug_print(f"[DEBUG] Round {round_num} - Permutazione P: {permuted}")
     return permuted
 
 def des_round(circuit, left_half, right_half, subkey, round_num):
@@ -192,7 +192,7 @@ def des_round(circuit, left_half, right_half, subkey, round_num):
         xor_wire = f"r{round_num}_R_{i}"
         circuit.add(xor_wire, 'xor', fanin=[left_half[i], f_result[i]])
         new_right.append(xor_wire)
-    debug_print(f"[DEBUG] Round {round_num} - new_right: {new_right}")
+    # debug_print(f"[DEBUG] Round {round_num} - new_right: {new_right}")
     return new_left, new_right
 
 def key_schedule(circuit, key_wires):
@@ -238,7 +238,7 @@ def key_schedule(circuit, key_wires):
         CD = C + D
         subkey = apply_permutation(circuit, CD, PC2_TABLE, f"K{i+1}")
         subkeys.append(subkey)
-        debug_print(f"[DEBUG] Sottochiave round {i+1}: {subkey}")
+        # debug_print(f"[DEBUG] Sottochiave round {i+1}: {subkey}")
     return subkeys
 
 def des_block(circuit, input_block, key_wires):
@@ -249,7 +249,7 @@ def des_block(circuit, input_block, key_wires):
         left, right = des_round(circuit, left, right, round_keys[i], i+1)
     pre_output = right + left
     output_block = final_permutation(circuit, pre_output)
-    debug_print("[DEBUG] Output wires finali:", output_block)
+    # debug_print("[DEBUG] Output wires finali:", output_block)
     return output_block
 
 def create_des_circuit(plaintext_hex, key_hex):
@@ -284,7 +284,7 @@ def create_des_circuit(plaintext_hex, key_hex):
     output_wires = des_block(circuit, input_wires, key_wires)
     for wire in output_wires:
         circuit.set_output(wire)
-    debug_print("[DEBUG] Circuit creato con", len(circuit.nodes()), "nodi.")
+    # debug_print("[DEBUG] Circuit creato con", len(circuit.nodes()), "nodi.")
     return circuit, input_wires, output_wires
 
 def des_encrypt(plaintext_hex, key_hex):
@@ -301,7 +301,7 @@ def des_encrypt(plaintext_hex, key_hex):
         input_values[f"key_{i}"] = (bit == '1')
     sim_results = simulate_circuit(circuit, input_values)
     debug_round1 = {node: sim_results[node] for node in sim_results if node.startswith("r1_")}
-    debug_print("[DEBUG] Stato simulazione round 1:", debug_round1)
+    # debug_print("[DEBUG] Stato simulazione round 1:", debug_round1)
     output_bits = "".join("1" if sim_results[wire] else "0" for wire in output_wires)
     ciphertext_hex = hex(int(output_bits, 2))[2:].upper().zfill(16)
     return ciphertext_hex
