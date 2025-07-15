@@ -1,5 +1,5 @@
 import circuitgraph as cg
-from ExtendedCircuitgraph_old import manual_tseitin_cnf, simulate_circuit
+from ExtendedCircuitgraph_0 import manual_tseitin_cnf, simulate_circuit
 
 DEBUG = True
 
