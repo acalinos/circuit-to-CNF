@@ -3,6 +3,9 @@ from solver import is_satisfiable, set_solver
 import pycosat
 from new_ExtendedCircuitgraph import Circuit
 
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 # Ensure default solver is pycosat
 def test_default_solver_is_pycosat():
     # The SOLVER should respond to solve
