@@ -4,7 +4,7 @@
 import circuitgraph as cg
 from pysat.formula import CNF
 from pysat.solvers import Glucose3
-from ExtendedCircuitgraph_0 import manual_tseitin_cnf, create_simple_circuit
+from archive.ExtendedCircuitgraph_0 import manual_tseitin_cnf, create_simple_circuit
 from des_circuit import create_des_circuit
 
 

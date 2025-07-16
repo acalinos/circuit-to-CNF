@@ -1,6 +1,6 @@
 # multi_des_cnf.py
 import circuitgraph as cg
-from ExtendedCircuitgraph_0 import manual_tseitin_cnf
+from archive.ExtendedCircuitgraph_0 import manual_tseitin_cnf
 import des_circuit   # importiamo il modulo intero, per poter settare INSTANCE_PREFIX
 
 def build_des_instance(circuit, pt_wires, ct_wires, key_wires, rounds, inst_prefix):
