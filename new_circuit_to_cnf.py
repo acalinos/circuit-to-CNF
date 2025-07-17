@@ -56,6 +56,29 @@ def cnf_xor(a: int, b: int, y: int) -> List[List[int]]:
         [ a, -b,  y],
     ]
 
+def cnf_not(x: int, y: int) -> List[List[int]]:
+    """
+    Clausole CNF per gate NOT unario: y = ¬x
+    Equivalenza y ↔ ¬x diventa (y ∨ x) ∧ (¬y ∨ ¬x).
+    """
+    return [
+        [ y,  x],
+        [-y, -x],
+    ]
+
+def cnf_xnor(a: int, b: int, y: int) -> List[List[int]]:
+    """
+    Clausole CNF per XNOR: y = ¬(a ⊕ b)  (y = 1 se a == b)
+    (¬a ∨ b ∨ ¬y)  ∧  (a ∨ ¬b ∨ ¬y)
+    ∧ (y ∨ a ∨ b)  ∧  (y ∨ ¬a ∨ ¬b)
+    """
+    return [
+        [-a,  b, -y],
+        [ a, -b, -y],
+        [ y,  a,  b],
+        [ y, -a, -b],
+    ]
+
 
 def cnf_buf(x: int, y: int) -> List[List[int]]:
     """
@@ -115,6 +138,16 @@ def circuit_to_cnf(
             if len(in_idxs) != 1:
                 raise ValueError("BUF supporta solo 1 ingresso")
             clauses.extend(cnf_buf(in_idxs[0], out_idx))
+        elif gate.gate_type == 'NOT':
+            # NOT supporta esattamente 1 ingresso
+            if len(in_idxs) != 1:
+                raise ValueError("NOT supporta solo 1 ingresso")
+            clauses.extend(cnf_not(in_idxs[0], out_idx))
+        elif gate.gate_type == 'XNOR':
+            # XNOR binario, un solo ingresso
+            if len(in_idxs) != 2:
+                raise ValueError("XNOR supporta solo 2 ingressi")
+            clauses.extend(cnf_xnor(in_idxs[0], in_idxs[1], out_idx))
         else:
             raise ValueError(f"Gate type {gate.gate_type} non supportato")
 
